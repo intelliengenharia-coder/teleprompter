@@ -1,0 +1,15 @@
+{
+  "name": "Teleprompter Jhone de Campos",
+  "short_name": "Teleprompter",
+  "description": "Le o roteiro em um aparelho enquanto o outro grava.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#05060A",
+  "theme_color": "#05060A",
+  "icons": [
+    { "src": "icone.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icone.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

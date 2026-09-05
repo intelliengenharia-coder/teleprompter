@@ -1,0 +1,694 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Teleprompter de leitura: o roteiro rola em um aparelho enquanto o outro grava.">
+<meta name="theme-color" content="#05060A">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Teleprompter">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icone.png" sizes="512x512" type="image/png">
+<link rel="apple-touch-icon" href="icone.png">
+<title>Teleprompter Jhone de Campos</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Newsreader:opsz,wght@6..72,400;6..72,600&family=Source+Sans+3:wght@400;600;700&display=swap">
+
+<style>
+/* Tema único e escuro, de propósito: teleprompter claro estoura luz no rosto
+   e reflete no vidro do rig. Toda cor é pintada explicitamente. */
+:root{
+  --stage:#000000;
+  --ink:#05060A;
+  --panel:#0E1118;
+  --panel-2:#141922;
+  --line:#1E2430;
+  --text:#F2F4F8;
+  --dim:#798194;
+  --mark:#FFB020;
+  --live:#FF453A;
+
+  --read: "Source Sans 3", ui-sans-serif, system-ui, sans-serif;
+  --ui: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+  --serif: "Newsreader", Georgia, serif;
+}
+
+*{box-sizing:border-box}
+body{background:var(--ink);color:var(--text);font-family:var(--ui);-webkit-text-size-adjust:100%}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--mark);outline-offset:2px;border-radius:4px}
+
+/* ---------- estrutura ---------- */
+.app{min-height:100vh;display:flex;flex-direction:column}
+
+.bar{
+  display:flex;align-items:baseline;gap:14px;flex-wrap:wrap;
+  padding:18px 22px 16px;border-bottom:1px solid var(--line);
+}
+.brand{font-size:13px;font-weight:600;letter-spacing:.16em;text-transform:uppercase}
+.brand span{color:var(--mark)}
+.sub{font-size:12px;color:var(--dim)}
+.bar .spacer{flex:1}
+.readout{
+  font-family:var(--mono);font-size:12px;color:var(--dim);
+  font-variant-numeric:tabular-nums;display:flex;gap:16px;flex-wrap:wrap;
+}
+.readout b{color:var(--text);font-weight:500}
+
+.setup{
+  flex:1;display:grid;grid-template-columns:minmax(0,1fr) 330px;
+  gap:0;align-items:stretch;
+}
+@media (max-width:880px){ .setup{grid-template-columns:1fr} }
+
+/* ---------- editor ---------- */
+.editor{display:flex;flex-direction:column;min-width:0;padding:22px}
+.label{
+  font-size:11px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--dim);margin-bottom:8px;display:block;
+}
+textarea{
+  flex:1;min-height:320px;width:100%;resize:vertical;
+  background:var(--panel);border:1px solid var(--line);border-radius:10px;
+  padding:18px;font-family:var(--read);font-size:16px;line-height:1.7;
+}
+textarea::placeholder{color:var(--dim)}
+.editor-foot{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.hint{font-size:12px;color:var(--mark)}
+
+/* ---------- painel ---------- */
+.panel{
+  background:var(--panel);border-left:1px solid var(--line);
+  padding:22px;display:flex;flex-direction:column;gap:20px;
+}
+@media (max-width:880px){ .panel{border-left:0;border-top:1px solid var(--line)} }
+
+.field{display:flex;flex-direction:column;gap:7px}
+.field-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+.field-head span:first-child{font-size:13px}
+.value{font-family:var(--mono);font-size:12px;color:var(--mark);font-variant-numeric:tabular-nums}
+
+input[type=range]{
+  -webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;cursor:pointer;
+}
+input[type=range]::-webkit-slider-runnable-track{height:2px;background:var(--line)}
+input[type=range]::-moz-range-track{height:2px;background:var(--line)}
+input[type=range]::-webkit-slider-thumb{
+  -webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--mark);margin-top:-7px;border:0;
+}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--mark);border:0}
+
+.segment{display:flex;gap:0;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.segment button{
+  flex:1;background:transparent;border:0;padding:9px 4px;font-size:12px;
+  color:var(--dim);cursor:pointer;border-right:1px solid var(--line);
+}
+.segment button:last-child{border-right:0}
+.segment button[aria-pressed="true"]{background:var(--panel-2);color:var(--text)}
+.segment button.serif{font-family:var(--serif)}
+.segment button.mono{font-family:var(--mono)}
+
+.toggles{display:flex;gap:8px;flex-wrap:wrap}
+.chip{
+  background:transparent;border:1px solid var(--line);border-radius:999px;
+  padding:7px 13px;font-size:12px;color:var(--dim);cursor:pointer;
+}
+.chip[aria-pressed="true"]{border-color:var(--mark);color:var(--mark)}
+
+.go{
+  margin-top:auto;background:var(--mark);color:#12141A;border:0;border-radius:10px;
+  padding:15px;font-size:15px;font-weight:600;cursor:pointer;
+}
+.go:hover{filter:brightness(1.08)}
+.ghost{
+  background:transparent;border:1px solid var(--line);border-radius:8px;
+  padding:9px 14px;font-size:13px;color:var(--dim);cursor:pointer;
+}
+.ghost:hover{color:var(--text);border-color:var(--dim)}
+
+.keys{
+  font-size:11px;color:var(--dim);line-height:1.9;
+  border-top:1px solid var(--line);padding-top:14px;
+}
+.keys kbd{
+  font-family:var(--mono);font-size:10px;background:var(--panel-2);
+  border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--text);
+}
+
+/* ---------- palco de leitura ---------- */
+.stage{
+  position:fixed;inset:0;background:var(--stage);z-index:50;
+  display:flex;flex-direction:column;overflow:hidden;
+}
+.stage[hidden]{display:none}
+
+.viewport{position:relative;flex:1;overflow:hidden}
+/* .mirror espelha; .scroller rola. Separados de proposito: assim o espelho
+   gira em torno do centro da tela e a regua de cota nunca sai invertida. */
+.mirror{
+  position:absolute;inset:0;transform-origin:50% 50%;
+  /* Esmaece topo e base para a leitura nao terminar em corte seco.
+     Fica so no texto: a regua de cota continua com traco cheio. */
+  -webkit-mask-image:linear-gradient(to bottom,transparent 0,#000 7%,#000 87%,transparent 100%);
+  mask-image:linear-gradient(to bottom,transparent 0,#000 7%,#000 87%,transparent 100%);
+}
+.scroller{
+  position:absolute;left:50%;top:0;
+  will-change:transform;
+}
+.scroller p{margin:0 0 .85em}
+.scroller p:last-child{margin-bottom:0}
+
+/* Régua de leitura desenhada como cota de prancha: seta, linha, medida, linha, seta.
+   No lugar da distância, o tempo que ainda falta de fala. */
+.dim{
+  position:absolute;left:0;right:0;display:flex;align-items:center;gap:8px;
+  padding:0 18px;pointer-events:none;transform:translateY(-50%);
+}
+.dim .tick{
+  width:0;height:0;border-top:7px solid transparent;border-bottom:7px solid transparent;
+}
+.dim .tick.l{border-right:11px solid var(--mark)}
+.dim .tick.r{border-left:11px solid var(--mark)}
+.dim .rule{flex:1;height:1px;background:linear-gradient(90deg,var(--mark),rgba(255,176,32,.15))}
+.dim .rule.r{background:linear-gradient(90deg,rgba(255,176,32,.15),var(--mark))}
+.dim .measure{
+  font-family:var(--mono);font-size:12px;color:var(--mark);font-variant-numeric:tabular-nums;
+  letter-spacing:.04em;white-space:nowrap;
+}
+
+/* Escala de progresso, graduada como régua */
+.scale{position:relative;height:26px;flex:none;border-bottom:1px solid var(--line)}
+.scale .ticks{position:absolute;inset:0;display:flex;align-items:flex-end}
+.scale .t{flex:1;border-left:1px solid var(--line);height:6px}
+.scale .t.major{height:12px;border-left-color:var(--dim)}
+.scale .fill{position:absolute;left:0;bottom:0;height:2px;background:var(--mark)}
+
+.controls{
+  flex:none;display:flex;align-items:center;justify-content:center;gap:10px;
+  padding:14px;border-top:1px solid var(--line);background:var(--ink);
+  transition:opacity .35s ease;
+}
+.controls.idle{opacity:.12}
+.ctrl{
+  background:var(--panel);border:1px solid var(--line);border-radius:8px;
+  padding:10px 15px;font-size:13px;color:var(--text);cursor:pointer;min-width:46px;
+}
+.ctrl:hover{border-color:var(--dim)}
+.ctrl.primary{background:var(--mark);color:#12141A;border-color:var(--mark);font-weight:600;min-width:104px}
+.ctrl.exit{color:var(--dim)}
+.ctrl .k{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+.ctrl.primary .k{color:#12141A;opacity:.65}
+
+.note{
+  padding:10px 22px;font-size:12px;color:var(--dim);
+  border-top:1px solid var(--line);
+}
+.note b{color:var(--text);font-weight:500}
+
+@media (prefers-reduced-motion:reduce){
+  .controls{transition:none}
+}
+</style>
+
+<style>
+/* Camada de celular. Fica depois do CSS original de proposito: teleprompter.html
+   continua sendo a fonte, e isto e so o que o navegador de celular exige. */
+
+/* A barra de endereco do Chrome some e volta, e 100vh nao acompanha. */
+.app{min-height:100dvh}
+
+/* Puxar o dedo para baixo recarrega a pagina no meio da leitura. Desligado. */
+html,body{overscroll-behavior:none}
+
+/* Sem isto, dois toques no texto dao zoom em vez de pausar. */
+.stage{touch-action:manipulation;-webkit-user-select:none;user-select:none}
+
+/* Barra de gestos e recorte de tela nao podem comer os botoes. */
+.controls{padding-bottom:max(14px, env(safe-area-inset-bottom));flex-wrap:wrap}
+.scale{padding-top:env(safe-area-inset-top)}
+
+/* Celular em pe: nao existe teclado, entao a dica de tecla dentro do botao so
+   rouba largura e empurra o Sair para fora da tela. */
+@media (max-width:560px){
+  .ctrl .k{display:none}
+  .controls{gap:6px;padding:10px 8px max(10px, env(safe-area-inset-bottom))}
+  .ctrl{padding:12px 10px;font-size:12px;min-width:0;min-height:44px}
+  .ctrl.primary{min-width:78px;font-size:13px}
+}
+
+/* Aparelho estreito (Samsung comum, iPhone fora do Max): sem apertar mais, o Sair
+   cai para uma segunda linha e a barra rouba 50px da area de leitura.
+   A altura de toque continua 44px, que e o que a mao precisa. */
+@media (max-width:400px){
+  .controls{gap:4px;padding:8px 6px max(8px, env(safe-area-inset-bottom))}
+  .ctrl{padding:12px 6px;font-size:11px}
+  .ctrl.primary{min-width:66px;font-size:12px}
+}
+
+/* Celular deitado: sobra pouca altura, o botao de comecar nao pode ficar fora do alcance. */
+@media (max-height:520px){
+  .bar{padding:10px 16px 8px}
+  .note{display:none}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="bar">
+    <div>
+      <div class="brand">Teleprompter <span>Jhone de Campos</span></div>
+      <div class="sub">Leitura em um aparelho, câmera no outro</div>
+    </div>
+    <div class="spacer"></div>
+    <div class="readout">
+      <span><b id="rdWords">0</b> palavras</span>
+      <span>fala de <b id="rdTime">0:00</b></span>
+      <span>a <b id="rdWpm">130</b> ppm</span>
+    </div>
+  </header>
+
+  <main class="setup">
+    <section class="editor">
+      <label class="label" for="script">Roteiro <span style="color:var(--mark)">(exemplo carregado, troque pelo seu)</span></label>
+      <textarea id="script" spellcheck="true" placeholder="Cole seu roteiro aqui."></textarea>
+      <div class="editor-foot">
+        <button class="ghost" id="btnPaste" type="button">Colar da área de transferência</button>
+        <button class="ghost" id="btnClear" type="button">Limpar</button>
+        <span id="pasteHint" class="hint" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <aside class="panel">
+      <div class="field">
+        <div class="field-head"><span>Ritmo de fala</span><span class="value" id="vWpm">130 ppm</span></div>
+        <input type="range" id="wpm" min="70" max="240" step="5" value="130">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><span>Tamanho do texto</span><span class="value" id="vSize">44 px</span></div>
+        <input type="range" id="size" min="20" max="110" step="1" value="44">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><span>Espaço entre linhas</span><span class="value" id="vLead">1,45</span></div>
+        <input type="range" id="lead" min="1.1" max="2.2" step="0.05" value="1.45">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><span>Largura da coluna</span><span class="value" id="vWidth">72%</span></div>
+        <input type="range" id="width" min="35" max="100" step="1" value="72">
+      </div>
+
+      <div class="field">
+        <div class="field-head"><span>Altura da linha de leitura</span><span class="value" id="vGuide">38%</span></div>
+        <input type="range" id="guide" min="12" max="75" step="1" value="38">
+      </div>
+
+      <div class="field">
+        <span class="label" style="margin:0">Letra</span>
+        <div class="segment" role="group" aria-label="Escolha da letra">
+          <button type="button" data-font="sans" aria-pressed="true">Sans</button>
+          <button type="button" class="serif" data-font="serif" aria-pressed="false">Serifa</button>
+          <button type="button" class="mono" data-font="mono" aria-pressed="false">Mono</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="label" style="margin:0">Espelho</span>
+        <div class="toggles">
+          <button type="button" class="chip" id="mirX" aria-pressed="false">Horizontal</button>
+          <button type="button" class="chip" id="mirY" aria-pressed="false">Vertical</button>
+        </div>
+      </div>
+
+      <button class="go" id="btnStart" type="button">Começar a leitura</button>
+
+      <div class="keys">
+        <kbd>espaço</kbd> rola e pausa &nbsp; <kbd>R</kbd> volta ao início<br>
+        <kbd>↑</kbd><kbd>↓</kbd> ritmo &nbsp; <kbd>+</kbd><kbd>−</kbd> tamanho da letra<br>
+        <kbd>M</kbd> espelha &nbsp; <kbd>F</kbd> tela cheia &nbsp; <kbd>Esc</kbd> sai
+      </div>
+    </aside>
+  </main>
+
+  <p class="note">
+    Esta página é a <b>ponte</b>: ela lê o roteiro, não grava vídeo. Deixe o roteiro rolando aqui,
+    no iPad ou no notebook logo abaixo da lente, e grave no iPhone pelo app da Câmera.
+    Navegador de celular não grava em 4K, por isso a gravação continua sendo trabalho do app nativo.
+  </p>
+</div>
+
+<section class="stage" id="stage" hidden aria-label="Leitura em andamento">
+  <div class="scale" aria-hidden="true">
+    <div class="ticks" id="ticks"></div>
+    <div class="fill" id="fill" style="width:0%"></div>
+  </div>
+
+  <div class="viewport" id="viewport">
+    <div class="mirror" id="mirror"><div class="scroller" id="scroller"></div></div>
+    <div class="dim" id="dim">
+      <span class="tick l"></span>
+      <span class="rule"></span>
+      <span class="measure" id="measure">0:00</span>
+      <span class="rule r"></span>
+      <span class="tick r"></span>
+    </div>
+  </div>
+
+  <div class="controls" id="controls">
+    <button class="ctrl" id="cRestart" type="button">Início<span class="k">R</span></button>
+    <button class="ctrl primary" id="cPlay" type="button">Rolar<span class="k">espaço</span></button>
+    <button class="ctrl" id="cSlower" type="button">Mais devagar</button>
+    <button class="ctrl" id="cFaster" type="button">Mais rápido</button>
+    <button class="ctrl exit" id="cExit" type="button">Sair<span class="k">esc</span></button>
+  </div>
+</section>
+
+<script>
+(function () {
+  "use strict";
+
+  var SAMPLE = "Olha, se você está pensando em construir, tem uma conta que quase ninguém faz antes de começar.\n\nE é justamente ela que decide se a obra vai fechar no orçamento ou virar aquela história de terminar devendo.\n\nVou te mostrar os três pontos onde o dinheiro escapa numa obra, e o que dá pra fazer em cada um deles ainda na fase de projeto, que é quando ajustar custa quase nada.\n\nO primeiro já pega quase todo mundo, então anota aí.";
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  var el = {
+    script: $("script"), stage: $("stage"), scroller: $("scroller"),
+    viewport: $("viewport"), mirror: $("mirror"), dim: $("dim"), measure: $("measure"),
+    fill: $("fill"), ticks: $("ticks"), controls: $("controls"),
+    play: $("cPlay"), rdWords: $("rdWords"), rdTime: $("rdTime"), rdWpm: $("rdWpm")
+  };
+
+  var S = {
+    wpm: 130, size: 44, lead: 1.45, width: 72, guide: 38,
+    font: "sans", mirX: false, mirY: false, text: ""
+  };
+
+  // ---------- persistência local, tolerante a navegador que bloqueia ----------
+  function load() {
+    try {
+      var raw = localStorage.getItem("teleprompter-jhone");
+      if (raw) { var o = JSON.parse(raw); for (var k in o) if (k in S) S[k] = o[k]; }
+    } catch (e) { /* janela anônima ou site data bloqueado: segue com os padrões */ }
+  }
+  function save() {
+    try { localStorage.setItem("teleprompter-jhone", JSON.stringify(S)); } catch (e) {}
+  }
+
+  // ---------- estado da rolagem ----------
+  var offset = 0, running = false, lastT = 0, raf = 0, contentH = 0, words = 1;
+
+  function countWords(t) {
+    var m = String(t).trim().match(/\S+/g);
+    return m ? m.length : 0;
+  }
+
+  function fmt(sec) {
+    if (!isFinite(sec) || sec < 0) sec = 0;
+    var m = Math.floor(sec / 60), s = Math.round(sec % 60);
+    if (s === 60) { m += 1; s = 0; }
+    return m + ":" + (s < 10 ? "0" : "") + s;
+  }
+
+  function fontStack() {
+    if (S.font === "serif") return "var(--serif)";
+    if (S.font === "mono") return "var(--mono)";
+    return "var(--read)";
+  }
+
+  // ---------- montagem do texto no palco ----------
+  function buildStage() {
+    var text = el.script.value;
+    words = Math.max(1, countWords(text));
+
+    el.scroller.innerHTML = "";
+    var blocks = text.split(/\n{2,}/);
+    for (var i = 0; i < blocks.length; i++) {
+      var p = document.createElement("p");
+      p.textContent = blocks[i].replace(/\n/g, " ").trim();
+      if (p.textContent) el.scroller.appendChild(p);
+    }
+    if (!el.scroller.childNodes.length) {
+      var empty = document.createElement("p");
+      empty.textContent = "Sem roteiro. Volte e cole o texto.";
+      el.scroller.appendChild(empty);
+    }
+
+    var vh = el.viewport.clientHeight;
+    var guideY = vh * (S.guide / 100);
+
+    el.scroller.style.width = S.width + "%";
+    el.scroller.style.fontFamily = fontStack();
+    el.scroller.style.fontSize = S.size + "px";
+    el.scroller.style.fontWeight = S.font === "serif" ? "600" : "600";
+    el.scroller.style.lineHeight = String(S.lead);
+    el.scroller.style.color = "var(--text)";
+    el.scroller.style.paddingTop = guideY + "px";
+    el.scroller.style.paddingBottom = Math.max(0, vh - guideY) + "px";
+
+    el.dim.style.top = guideY + "px";
+
+    // altura só do texto, sem os respiros: é ela que define o fim da leitura
+    contentH = el.scroller.scrollHeight - guideY - Math.max(0, vh - guideY);
+    if (contentH < 1) contentH = 1;
+
+    applyTransform();
+    updateMeasures();
+  }
+
+  function applyTransform() {
+    el.scroller.style.transform = "translate3d(-50%," + (-offset).toFixed(2) + "px,0)";
+    el.mirror.style.transform = "scale(" + (S.mirX ? -1 : 1) + "," + (S.mirY ? -1 : 1) + ")";
+  }
+
+  function pxPerSecond() {
+    return (S.wpm / 60) * (contentH / words);
+  }
+
+  function updateMeasures() {
+    var speed = pxPerSecond();
+    var left = Math.max(0, contentH - offset);
+    el.measure.textContent = fmt(speed > 0 ? left / speed : 0);
+    el.fill.style.width = Math.min(100, (offset / contentH) * 100) + "%";
+  }
+
+  function frame(t) {
+    if (!running) return;
+    if (!lastT) lastT = t;
+    var dt = (t - lastT) / 1000;
+    lastT = t;
+
+    offset += pxPerSecond() * dt;
+    if (offset >= contentH) { offset = contentH; setRunning(false); }
+
+    applyTransform();
+    updateMeasures();
+    if (running) raf = requestAnimationFrame(frame);
+  }
+
+  function setRunning(on) {
+    running = on;
+    lastT = 0;
+    el.play.textContent = on ? "Pausar" : "Rolar";
+    var k = document.createElement("span");
+    k.className = "k"; k.textContent = "espaço";
+    el.play.appendChild(k);
+    if (on) { cancelAnimationFrame(raf); raf = requestAnimationFrame(frame); }
+    else { cancelAnimationFrame(raf); }
+    wakeLock(on);
+  }
+
+  function restart() { offset = 0; applyTransform(); updateMeasures(); }
+
+  // ---------- tela acesa durante a leitura ----------
+  var lock = null;
+  function wakeLock(on) {
+    try {
+      if (on && navigator.wakeLock && !lock) {
+        navigator.wakeLock.request("screen").then(function (l) { lock = l; }, function () {});
+      } else if (!on && lock) { lock.release(); lock = null; }
+    } catch (e) {}
+  }
+
+  // ---------- painel ----------
+  function bindRange(id, key, fmtFn, after) {
+    var input = $(id), out = $("v" + id.charAt(0).toUpperCase() + id.slice(1));
+    input.value = S[key];
+    out.textContent = fmtFn(S[key]);
+    input.addEventListener("input", function () {
+      S[key] = parseFloat(input.value);
+      out.textContent = fmtFn(S[key]);
+      save(); refreshReadout();
+      if (after) after();
+      if (!el.stage.hidden) buildStage();
+    });
+  }
+
+  function refreshReadout() {
+    var w = countWords(el.script.value);
+    el.rdWords.textContent = w;
+    el.rdTime.textContent = fmt(S.wpm > 0 ? (w / S.wpm) * 60 : 0);
+    el.rdWpm.textContent = S.wpm;
+  }
+
+  function setPressed(node, on) { node.setAttribute("aria-pressed", on ? "true" : "false"); }
+
+  // ---------- controles some sozinho ----------
+  var idleTimer = 0;
+  function wake() {
+    el.controls.classList.remove("idle");
+    clearTimeout(idleTimer);
+    idleTimer = setTimeout(function () {
+      if (running) el.controls.classList.add("idle");
+    }, 3000);
+  }
+
+  function openStage() {
+    el.stage.hidden = false;
+    document.body.style.overflow = "hidden";
+    offset = 0;
+    buildStage();
+    wake();
+    el.play.focus();
+  }
+
+  function closeStage() {
+    setRunning(false);
+    el.stage.hidden = true;
+    document.body.style.overflow = "";
+    if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen();
+  }
+
+  function toggleFullscreen() {
+    try {
+      if (!document.fullscreenElement) {
+        if (el.stage.requestFullscreen) el.stage.requestFullscreen();
+      } else if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    } catch (e) {}
+  }
+
+  // ---------- ligações ----------
+  load();
+  el.script.value = S.text || SAMPLE;
+
+  bindRange("wpm", "wpm", function (v) { return v + " ppm"; });
+  bindRange("size", "size", function (v) { return v + " px"; });
+  bindRange("lead", "lead", function (v) { return String(v.toFixed(2)).replace(".", ","); });
+  bindRange("width", "width", function (v) { return v + "%"; });
+  bindRange("guide", "guide", function (v) { return v + "%"; });
+
+  Array.prototype.forEach.call(document.querySelectorAll("[data-font]"), function (b) {
+    setPressed(b, b.getAttribute("data-font") === S.font);
+    b.addEventListener("click", function () {
+      S.font = b.getAttribute("data-font");
+      Array.prototype.forEach.call(document.querySelectorAll("[data-font]"), function (o) {
+        setPressed(o, o === b);
+      });
+      save();
+      if (!el.stage.hidden) buildStage();
+    });
+  });
+
+  var mirX = $("mirX"), mirY = $("mirY");
+  setPressed(mirX, S.mirX); setPressed(mirY, S.mirY);
+  mirX.addEventListener("click", function () { S.mirX = !S.mirX; setPressed(mirX, S.mirX); save(); applyTransform(); });
+  mirY.addEventListener("click", function () { S.mirY = !S.mirY; setPressed(mirY, S.mirY); save(); applyTransform(); });
+
+  el.script.addEventListener("input", function () { S.text = el.script.value; save(); refreshReadout(); });
+
+  var hint = $("pasteHint");
+  function say(msg) {
+    hint.textContent = msg || "";
+    if (msg) setTimeout(function () { hint.textContent = ""; }, 5000);
+  }
+
+  $("btnPaste").addEventListener("click", function () {
+    if (!navigator.clipboard || !navigator.clipboard.readText) {
+      say("Este navegador não libera colar por botão. Clique na caixa e use Cmd+V.");
+      return;
+    }
+    navigator.clipboard.readText().then(function (t) {
+      el.script.value = t; S.text = t; save(); refreshReadout(); say("Roteiro colado.");
+    }, function () {
+      say("Permissão negada pelo navegador. Clique na caixa e use Cmd+V.");
+    });
+  });
+
+  $("btnClear").addEventListener("click", function () {
+    el.script.value = ""; S.text = ""; save(); refreshReadout(); el.script.focus();
+  });
+
+  $("btnStart").addEventListener("click", openStage);
+  $("cExit").addEventListener("click", closeStage);
+  $("cRestart").addEventListener("click", function () { restart(); wake(); });
+  el.play.addEventListener("click", function () { setRunning(!running); wake(); });
+  $("cSlower").addEventListener("click", function () { nudgeWpm(-5); });
+  $("cFaster").addEventListener("click", function () { nudgeWpm(5); });
+
+  function nudgeWpm(d) {
+    S.wpm = Math.max(70, Math.min(240, S.wpm + d));
+    $("wpm").value = S.wpm; $("vWpm").textContent = S.wpm + " ppm";
+    save(); refreshReadout(); updateMeasures(); wake();
+  }
+  function nudgeSize(d) {
+    S.size = Math.max(20, Math.min(110, S.size + d));
+    $("size").value = S.size; $("vSize").textContent = S.size + " px";
+    save();
+    if (!el.stage.hidden) {
+      var keep = contentH > 0 ? offset / contentH : 0;
+      buildStage();
+      offset = keep * contentH;
+      applyTransform(); updateMeasures();
+    }
+    wake();
+  }
+
+  document.addEventListener("keydown", function (e) {
+    if (el.stage.hidden) return;
+    var k = e.key;
+    if (k === " " || k === "Spacebar") { e.preventDefault(); setRunning(!running); wake(); }
+    else if (k === "Escape") { closeStage(); }
+    else if (k === "r" || k === "R") { restart(); wake(); }
+    else if (k === "ArrowUp") { e.preventDefault(); nudgeWpm(5); }
+    else if (k === "ArrowDown") { e.preventDefault(); nudgeWpm(-5); }
+    else if (k === "+" || k === "=") { nudgeSize(2); }
+    else if (k === "-" || k === "_") { nudgeSize(-2); }
+    else if (k === "m" || k === "M") { S.mirX = !S.mirX; setPressed(mirX, S.mirX); save(); applyTransform(); wake(); }
+    else if (k === "f" || k === "F") { toggleFullscreen(); }
+  });
+
+  el.viewport.addEventListener("click", function () { setRunning(!running); wake(); });
+  ["mousemove", "touchstart", "pointerdown"].forEach(function (ev) {
+    el.stage.addEventListener(ev, wake, { passive: true });
+  });
+
+  window.addEventListener("resize", function () {
+    if (el.stage.hidden) return;
+    var keep = contentH > 0 ? offset / contentH : 0;
+    buildStage();
+    offset = keep * contentH;
+    applyTransform(); updateMeasures();
+  });
+
+  // régua graduada do progresso: 20 traços, maior a cada 5
+  for (var i = 0; i < 20; i++) {
+    var t = document.createElement("div");
+    t.className = "t" + (i % 5 === 0 ? " major" : "");
+    el.ticks.appendChild(t);
+  }
+
+  refreshReadout();
+  setRunning(false);
+})();
+</script>
+
+</body>
+</html>
