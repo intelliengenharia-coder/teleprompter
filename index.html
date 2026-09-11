@@ -204,7 +204,44 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .ctrl.exit{color:var(--dim)}
 .ctrl[aria-pressed="true"]{border-color:var(--mark);color:var(--mark);background:var(--panel-2)}
 .ctrl .k{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+/* Cada botao da barra tem rotulo longo e rotulo curto: em tela de celular o longo
+   some, porque sete botoes por extenso nao cabem em uma linha. */
 .ctrl .rotc{display:none}
+
+/* Daqui para baixo, a camada de celular. Vale para a pagina publicada, para a
+   WebView do app Android e para quem abrir este arquivo direto. O que e exclusivo
+   de pagina publicada (charset, manifest, service worker) continua no build.sh. */
+
+/* Barra de gestos e recorte de tela nao podem comer os botoes. */
+.controls{padding-bottom:max(14px, env(safe-area-inset-bottom));flex-wrap:wrap}
+.scale{padding-top:env(safe-area-inset-top)}
+
+/* Celular: nao existe teclado, entao a dica de tecla dentro do botao so rouba
+   largura. E sete botoes com rotulo longo empurram o Sair para uma segunda linha,
+   que rouba area de leitura. */
+@media (max-width:560px){
+  .ctrl .k{display:none}
+  .ctrl .rot{display:none}
+  .ctrl .rotc{display:inline}
+  #cMirror .rotc,#cFlipV .rotc{font-size:17px;line-height:1}
+  .controls{gap:6px;padding:10px 8px max(10px, env(safe-area-inset-bottom))}
+  .ctrl{padding:12px 10px;font-size:12px;min-width:0;min-height:44px}
+  .ctrl.primary{min-width:78px;font-size:13px}
+}
+
+/* Celular em pe, incluindo o 16 Pro Max (430px de largura CSS): sem apertar mais,
+   o Sair cai para a segunda linha. A altura de toque continua 44px. */
+@media (max-width:470px){
+  .controls{gap:4px;padding:8px 6px max(8px, env(safe-area-inset-bottom))}
+  .ctrl{padding:12px 6px;font-size:11px}
+  .ctrl.primary{min-width:66px;font-size:12px}
+}
+
+/* Celular deitado: sobra pouca altura, o botao de comecar nao pode ficar fora do alcance. */
+@media (max-height:520px){
+  .bar{padding:10px 16px 8px}
+  .note{display:none}
+}
 .ctrl.primary .k{color:#12141A;opacity:.65}
 
 .note{
@@ -231,38 +268,6 @@ html,body{overscroll-behavior:none}
 /* Sem isto, dois toques no texto dao zoom em vez de pausar. */
 .stage{touch-action:manipulation;-webkit-user-select:none;user-select:none}
 
-/* Barra de gestos e recorte de tela nao podem comer os botoes. */
-.controls{padding-bottom:max(14px, env(safe-area-inset-bottom));flex-wrap:wrap}
-.scale{padding-top:env(safe-area-inset-top)}
-
-/* Celular em pe: nao existe teclado, entao a dica de tecla dentro do botao so
-   rouba largura e empurra o Sair para fora da tela. */
-@media (max-width:560px){
-  .ctrl .k{display:none}
-  /* Sete botoes nao cabem em uma linha no celular, e barra de duas linhas rouba
-     area de leitura. No celular vale o rotulo curto: o texto longo some. */
-  .ctrl .rot{display:none}
-  .ctrl .rotc{display:inline}
-  #cMirror .rotc,#cFlipV .rotc{font-size:17px;line-height:1}
-  .controls{gap:6px;padding:10px 8px max(10px, env(safe-area-inset-bottom))}
-  .ctrl{padding:12px 10px;font-size:12px;min-width:0;min-height:44px}
-  .ctrl.primary{min-width:78px;font-size:13px}
-}
-
-/* Celular em pe, incluindo o 16 Pro Max (430px de largura CSS): sem apertar mais,
-   o Sair cai para uma segunda linha e a barra rouba 50px da area de leitura.
-   A altura de toque continua 44px, que e o que a mao precisa. */
-@media (max-width:470px){
-  .controls{gap:4px;padding:8px 6px max(8px, env(safe-area-inset-bottom))}
-  .ctrl{padding:12px 6px;font-size:11px}
-  .ctrl.primary{min-width:66px;font-size:12px}
-}
-
-/* Celular deitado: sobra pouca altura, o botao de comecar nao pode ficar fora do alcance. */
-@media (max-height:520px){
-  .bar{padding:10px 16px 8px}
-  .note{display:none}
-}
 </style>
 </head>
 <body>
