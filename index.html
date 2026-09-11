@@ -202,7 +202,9 @@ input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;bac
 .ctrl:hover{border-color:var(--dim)}
 .ctrl.primary{background:var(--mark);color:#12141A;border-color:var(--mark);font-weight:600;min-width:104px}
 .ctrl.exit{color:var(--dim)}
+.ctrl[aria-pressed="true"]{border-color:var(--mark);color:var(--mark);background:var(--panel-2)}
 .ctrl .k{font-family:var(--mono);font-size:11px;color:var(--dim);margin-left:6px}
+.ctrl .rotc{display:none}
 .ctrl.primary .k{color:#12141A;opacity:.65}
 
 .note{
@@ -237,15 +239,20 @@ html,body{overscroll-behavior:none}
    rouba largura e empurra o Sair para fora da tela. */
 @media (max-width:560px){
   .ctrl .k{display:none}
+  /* Sete botoes nao cabem em uma linha no celular, e barra de duas linhas rouba
+     area de leitura. No celular vale o rotulo curto: o texto longo some. */
+  .ctrl .rot{display:none}
+  .ctrl .rotc{display:inline}
+  #cMirror .rotc,#cFlipV .rotc{font-size:17px;line-height:1}
   .controls{gap:6px;padding:10px 8px max(10px, env(safe-area-inset-bottom))}
   .ctrl{padding:12px 10px;font-size:12px;min-width:0;min-height:44px}
   .ctrl.primary{min-width:78px;font-size:13px}
 }
 
-/* Aparelho estreito (Samsung comum, iPhone fora do Max): sem apertar mais, o Sair
-   cai para uma segunda linha e a barra rouba 50px da area de leitura.
+/* Celular em pe, incluindo o 16 Pro Max (430px de largura CSS): sem apertar mais,
+   o Sair cai para uma segunda linha e a barra rouba 50px da area de leitura.
    A altura de toque continua 44px, que e o que a mao precisa. */
-@media (max-width:400px){
+@media (max-width:470px){
   .controls{gap:4px;padding:8px 6px max(8px, env(safe-area-inset-bottom))}
   .ctrl{padding:12px 6px;font-size:11px}
   .ctrl.primary{min-width:66px;font-size:12px}
@@ -332,7 +339,7 @@ html,body{overscroll-behavior:none}
       <div class="keys">
         <kbd>espaço</kbd> rola e pausa &nbsp; <kbd>R</kbd> volta ao início<br>
         <kbd>↑</kbd><kbd>↓</kbd> ritmo &nbsp; <kbd>+</kbd><kbd>−</kbd> tamanho da letra<br>
-        <kbd>M</kbd> espelha &nbsp; <kbd>F</kbd> tela cheia &nbsp; <kbd>Esc</kbd> sai
+        <kbd>M</kbd> espelha &nbsp; <kbd>V</kbd> vira &nbsp; <kbd>F</kbd> tela cheia &nbsp; <kbd>Esc</kbd> sai
       </div>
     </aside>
   </main>
@@ -364,8 +371,10 @@ html,body{overscroll-behavior:none}
   <div class="controls" id="controls">
     <button class="ctrl" id="cRestart" type="button">Início<span class="k">R</span></button>
     <button class="ctrl primary" id="cPlay" type="button">Rolar<span class="k">espaço</span></button>
-    <button class="ctrl" id="cSlower" type="button">Mais devagar</button>
-    <button class="ctrl" id="cFaster" type="button">Mais rápido</button>
+    <button class="ctrl" id="cSlower" type="button"><span class="rot">Mais devagar</span><span class="rotc" aria-hidden="true">Devagar</span></button>
+    <button class="ctrl" id="cFaster" type="button"><span class="rot">Mais rápido</span><span class="rotc" aria-hidden="true">Rápido</span></button>
+    <button class="ctrl" id="cMirror" type="button" aria-pressed="false" title="Espelha o texto para ler no vidro do prompter"><span class="rot">Espelhar</span><span class="rotc" aria-hidden="true">⇄</span><span class="k">M</span></button>
+    <button class="ctrl" id="cFlipV" type="button" aria-pressed="false" title="Vira o texto de cabeça para baixo"><span class="rot">Virar</span><span class="rotc" aria-hidden="true">⇅</span><span class="k">V</span></button>
     <button class="ctrl exit" id="cExit" type="button">Sair<span class="k">esc</span></button>
   </div>
 </section>
@@ -382,7 +391,8 @@ html,body{overscroll-behavior:none}
     script: $("script"), stage: $("stage"), scroller: $("scroller"),
     viewport: $("viewport"), mirror: $("mirror"), dim: $("dim"), measure: $("measure"),
     fill: $("fill"), ticks: $("ticks"), controls: $("controls"),
-    play: $("cPlay"), rdWords: $("rdWords"), rdTime: $("rdTime"), rdWpm: $("rdWpm")
+    play: $("cPlay"), rdWords: $("rdWords"), rdTime: $("rdTime"), rdWpm: $("rdWpm"),
+    cMirror: $("cMirror"), cFlipV: $("cFlipV")
   };
 
   var S = {
@@ -598,9 +608,21 @@ html,body{overscroll-behavior:none}
   });
 
   var mirX = $("mirX"), mirY = $("mirY");
-  setPressed(mirX, S.mirX); setPressed(mirY, S.mirY);
-  mirX.addEventListener("click", function () { S.mirX = !S.mirX; setPressed(mirX, S.mirX); save(); applyTransform(); });
-  mirY.addEventListener("click", function () { S.mirY = !S.mirY; setPressed(mirY, S.mirY); save(); applyTransform(); });
+  /* Os quatro botoes (dois na tela inicial, dois na leitura) mexem no mesmo estado,
+     entao acendem e apagam juntos. */
+  function syncMirror() {
+    setPressed(mirX, S.mirX);
+    setPressed(mirY, S.mirY);
+    setPressed(el.cMirror, S.mirX);
+    setPressed(el.cFlipV, S.mirY);
+  }
+  function toggleMirX() { S.mirX = !S.mirX; syncMirror(); save(); applyTransform(); }
+  function toggleMirY() { S.mirY = !S.mirY; syncMirror(); save(); applyTransform(); }
+  syncMirror();
+  mirX.addEventListener("click", toggleMirX);
+  mirY.addEventListener("click", toggleMirY);
+  el.cMirror.addEventListener("click", function () { toggleMirX(); wake(); });
+  el.cFlipV.addEventListener("click", function () { toggleMirY(); wake(); });
 
   el.script.addEventListener("input", function () { S.text = el.script.value; save(); refreshReadout(); });
 
@@ -661,7 +683,8 @@ html,body{overscroll-behavior:none}
     else if (k === "ArrowDown") { e.preventDefault(); nudgeWpm(-5); }
     else if (k === "+" || k === "=") { nudgeSize(2); }
     else if (k === "-" || k === "_") { nudgeSize(-2); }
-    else if (k === "m" || k === "M") { S.mirX = !S.mirX; setPressed(mirX, S.mirX); save(); applyTransform(); wake(); }
+    else if (k === "m" || k === "M") { toggleMirX(); wake(); }
+    else if (k === "v" || k === "V") { toggleMirY(); wake(); }
     else if (k === "f" || k === "F") { toggleFullscreen(); }
   });
 

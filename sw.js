@@ -1,7 +1,7 @@
 /* Guarda a pagina para ela abrir sem internet.
    VERSAO precisa mudar a cada build, senao o aparelho continua servindo a
    copia velha e a correcao nunca chega em quem ja abriu uma vez. */
-var VERSAO = "tp-20260905-190021";
+var VERSAO = "tp-20260911-143538";
 var PROPRIOS = ["./", "index.html", "manifest.webmanifest", "icone.png"];
 
 self.addEventListener("install", function (e) {
